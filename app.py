@@ -65,7 +65,7 @@ def generate_qr():
         # Convert to base64 for embedding in HTML
         img_base64 = base64.b64encode(img_io.getvalue()).decode('utf-8')
 
-        # Optional: Save to file with timestamp
+        # Save to file with timestamp
         timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
         filename = f"qr_{timestamp}.png"
         filepath = os.path.join(app.config['UPLOAD_FOLDER'], filename)
@@ -84,11 +84,26 @@ def generate_qr():
 @app.route('/download/<filename>')
 def download_qr(filename):
     """Download generated QR code"""
-    filepath = os.path.join(app.config['UPLOAD_FOLDER'], filename)
-    if os.path.exists(filepath):
-        return send_file(filepath, as_attachment=True, download_name=filename)
-    else:
-        return "File not found", 404
+    try:
+        # Security check to prevent directory traversal
+        if '..' in filename or filename.startswith('/'):
+            return "Invalid filename", 400
+
+        filepath = os.path.join(app.config['UPLOAD_FOLDER'], filename)
+
+        # Check if file exists
+        if not os.path.exists(filepath):
+            return "File not found. The QR code may have been deleted.", 404
+
+        # Send file with proper mimetype
+        return send_file(
+            filepath,
+            as_attachment=True,
+            download_name=filename,
+            mimetype='image/png'
+        )
+    except Exception as e:
+        return f"Error downloading file: {str(e)}", 500
 
 
 @app.route('/generate-advanced', methods=['POST'])
@@ -116,6 +131,7 @@ def generate_advanced_qr():
         qr.make(fit=True)
 
         # Create image with custom colors
+        # Convert hex colors to RGB tuples if needed
         img = qr.make_image(fill_color=fill_color, back_color=back_color)
 
         # Save to BytesIO
@@ -126,15 +142,47 @@ def generate_advanced_qr():
         # Convert to base64
         img_base64 = base64.b64encode(img_io.getvalue()).decode('utf-8')
 
+        # Optional: Save custom colored QR code
+        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+        filename = f"qr_custom_{timestamp}.png"
+        filepath = os.path.join(app.config['UPLOAD_FOLDER'], filename)
+        img.save(filepath, 'PNG')
+
         return render_template('index.html',
                                qr_image=img_base64,
+                               qr_filename=filename,
                                qr_data=data,
                                success=True,
                                custom_colors=True)
 
     except Exception as e:
-        return render_template('index.html', error=f"Error: {str(e)}")
+        return render_template('index.html', error=f"Error generating custom QR code: {str(e)}")
+
+
+# Cleanup old QR codes (optional - to prevent filling up storage)
+@app.route('/cleanup')
+def cleanup_old_qrs():
+    """Delete QR codes older than 24 hours"""
+    try:
+        import time
+        current_time = time.time()
+        deleted_count = 0
+
+        for filename in os.listdir(UPLOAD_FOLDER):
+            filepath = os.path.join(UPLOAD_FOLDER, filename)
+            # Check if file is older than 24 hours (86400 seconds)
+            if os.path.isfile(filepath) and (current_time - os.path.getmtime(filepath)) > 86400:
+                os.remove(filepath)
+                deleted_count += 1
+
+        return f"Cleanup complete. Deleted {deleted_count} old QR codes."
+    except Exception as e:
+        return f"Error during cleanup: {str(e)}"
 
 
 if __name__ == '__main__':
-    app.run(debug=True, host='0.0.0.0', port=5000)
+    # Get port from environment variable (for Render deployment)
+    port = int(os.environ.get('PORT', 5000))
+    # Set debug=False for production
+    debug_mode = os.environ.get('FLASK_DEBUG', 'False').lower() == 'true'
+    app.run(debug=debug_mode, host='0.0.0.0', port=port)
