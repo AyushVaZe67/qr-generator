@@ -1,0 +1,299 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>QR Code Generator</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+
+        .header {
+            text-align: center;
+            color: white;
+            margin-bottom: 30px;
+        }
+
+        .header h1 {
+            font-size: 2.5em;
+            margin-bottom: 10px;
+        }
+
+        .header p {
+            font-size: 1.1em;
+            opacity: 0.9;
+        }
+
+        .main-content {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 30px;
+        }
+
+        .card {
+            background: white;
+            border-radius: 15px;
+            padding: 25px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+        }
+
+        .card h2 {
+            color: #333;
+            margin-bottom: 20px;
+            border-bottom: 2px solid #667eea;
+            padding-bottom: 10px;
+        }
+
+        .form-group {
+            margin-bottom: 20px;
+        }
+
+        label {
+            display: block;
+            margin-bottom: 8px;
+            color: #555;
+            font-weight: 500;
+        }
+
+        input, select, textarea {
+            width: 100%;
+            padding: 10px;
+            border: 2px solid #ddd;
+            border-radius: 8px;
+            font-size: 14px;
+            transition: border-color 0.3s;
+        }
+
+        input:focus, select:focus, textarea:focus {
+            outline: none;
+            border-color: #667eea;
+        }
+
+        textarea {
+            resize: vertical;
+            min-height: 80px;
+        }
+
+        button {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            padding: 12px 30px;
+            border-radius: 8px;
+            font-size: 16px;
+            cursor: pointer;
+            transition: transform 0.2s;
+            width: 100%;
+        }
+
+        button:hover {
+            transform: translateY(-2px);
+        }
+
+        .qr-result {
+            text-align: center;
+        }
+
+        .qr-image {
+            margin: 20px 0;
+            padding: 20px;
+            background: #f8f9fa;
+            border-radius: 10px;
+        }
+
+        .qr-image img {
+            max-width: 100%;
+            height: auto;
+            border: 3px solid #ddd;
+            border-radius: 10px;
+        }
+
+        .download-btn {
+            background: #28a745;
+            margin-top: 10px;
+        }
+
+        .download-btn:hover {
+            background: #218838;
+        }
+
+        .alert {
+            padding: 15px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+        }
+
+        .alert-success {
+            background: #d4edda;
+            color: #155724;
+            border: 1px solid #c3e6cb;
+        }
+
+        .alert-error {
+            background: #f8d7da;
+            color: #721c24;
+            border: 1px solid #f5c6cb;
+        }
+
+        .info-text {
+            font-size: 12px;
+            color: #666;
+            margin-top: 5px;
+        }
+
+        @media (max-width: 768px) {
+            .main-content {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        .color-input {
+            display: flex;
+            gap: 10px;
+            align-items: center;
+        }
+
+        .color-input input[type="color"] {
+            width: 60px;
+            height: 40px;
+            padding: 2px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>📱 QR Code Generator</h1>
+            <p>Create custom QR codes instantly with our easy-to-use generator</p>
+        </div>
+
+        <div class="main-content">
+            <div class="card">
+                <h2>Generate QR Code</h2>
+
+                {% if error %}
+                <div class="alert alert-error">
+                    {{ error }}
+                </div>
+                {% endif %}
+
+                {% if success %}
+                <div class="alert alert-success">
+                    ✓ QR Code generated successfully!
+                </div>
+                {% endif %}
+
+                <form method="POST" action="/generate">
+                    <div class="form-group">
+                        <label for="data">Data/URL:</label>
+                        <textarea id="data" name="data" placeholder="Enter text, URL, or any data..." required>{{ qr_data if qr_data else '' }}</textarea>
+                        <div class="info-text">Enter any text, website URL, contact info, or other data</div>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="size">Size (box size):</label>
+                        <select id="size" name="size">
+                            <option value="5">Small (5)</option>
+                            <option value="10" selected>Medium (10)</option>
+                            <option value="15">Large (15)</option>
+                            <option value="20">Extra Large (20)</option>
+                        </select>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="border">Border:</label>
+                        <select id="border" name="border">
+                            <option value="2">Small (2)</option>
+                            <option value="4" selected>Medium (4)</option>
+                            <option value="6">Large (6)</option>
+                            <option value="8">Extra Large (8)</option>
+                        </select>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="error_correction">Error Correction:</label>
+                        <select id="error_correction" name="error_correction">
+                            <option value="L">Low (7%)</option>
+                            <option value="M" selected>Medium (15%)</option>
+                            <option value="Q">Quartile (25%)</option>
+                            <option value="H">High (30%)</option>
+                        </select>
+                        <div class="info-text">Higher error correction makes QR code more durable but larger</div>
+                    </div>
+
+                    <button type="submit">Generate QR Code</button>
+                </form>
+            </div>
+
+            <div class="card">
+                <h2>Advanced Options</h2>
+                <form method="POST" action="/generate-advanced">
+                    <div class="form-group">
+                        <label for="data">Data/URL:</label>
+                        <textarea id="data_adv" name="data" placeholder="Enter text, URL, or any data..." required>{{ qr_data if qr_data else '' }}</textarea>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="fill_color">Fill Color:</label>
+                        <div class="color-input">
+                            <input type="color" id="fill_color" name="fill_color" value="#000000">
+                            <span>QR Code color</span>
+                        </div>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="back_color">Background Color:</label>
+                        <div class="color-input">
+                            <input type="color" id="back_color" name="back_color" value="#ffffff">
+                            <span>Background color</span>
+                        </div>
+                    </div>
+
+                    <button type="submit">Generate Custom QR</button>
+                </form>
+
+                {% if qr_image %}
+                <div class="qr-result">
+                    <h3>Your QR Code:</h3>
+                    <div class="qr-image">
+                        <img src="data:image/png;base64,{{ qr_image }}" alt="Generated QR Code">
+                    </div>
+
+                    {% if qr_filename %}
+                    <a href="{{ url_for('download_qr', filename=qr_filename) }}" class="download-btn" style="display: inline-block; text-decoration: none;">
+                        <button type="button" class="download-btn">💾 Download QR Code</button>
+                    </a>
+                    {% endif %}
+
+                    <div class="info-text">
+                        Scan this QR code to access: <strong>{{ qr_data[:50] }}{% if qr_data|length > 50 %}...{% endif %}</strong>
+                    </div>
+                </div>
+                {% else %}
+                <div class="qr-result">
+                    <div style="text-align: center; color: #999; padding: 40px;">
+                        <p>✨ Your generated QR code will appear here</p>
+                        <p style="font-size: 12px;">Fill in the data and click generate</p>
+                    </div>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</body>
+</html>
